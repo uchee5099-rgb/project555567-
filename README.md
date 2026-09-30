@@ -217,3 +217,4 @@ The app will be available at your production hostname. Admin login and console p
 - **Rate Limiting**: `express-rate-limit` protecting `/api/auth/*` from brute-force attempts.
 - **Security Headers**: `helmet` securing HTTP response headers and preventing clickjacking and MIME-type sniffing.
 - **Audit Logging**: Comprehensive recording of all financial actions, status toggles, reviewer approvals, and administrator IP addresses.
+- **Audit Logging**: Comprehensive recording of all financial actions, status toggles, reviewer approvals, and administrator IP addresses.
