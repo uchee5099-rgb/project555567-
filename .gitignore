@@ -1,0 +1,9 @@
+node_modules/
+client/dist/
+server/uploads/*
+!server/uploads/.gitkeep
+server/database/earnflow_store.json
+**/.env
+**/.env.*
+!**/.env.example
+npm-debug.log*
