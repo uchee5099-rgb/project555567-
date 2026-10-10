@@ -4,7 +4,7 @@
   "description": "Production Backend API for EarnFlow Task-Rewards Platform",
   "main": "server.js",
   "scripts": {
-    "start": "node --use-system-caserver.js",
+    "start": "node --use-system-ca server.js",
     "dev": "node server.js",
     "seed": "node database/seed.js"
   },
