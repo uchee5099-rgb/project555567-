@@ -545,28 +545,143 @@ async function initialize() {
   }
 
   try {
-    const result = await pool.query(
-      'SELECT table_name FROM information_schema.tables WHERE table_schema = $1',
-      ['public']
-    );
-    const existingTables = new Set(result.rows.map((row) => row.table_name));
-    const requiredTables = [
-      'users', 'wallets', 'tasks', 'task_submissions', 'transactions', 'withdrawals',
-      'account_activations', 'referrals', 'notifications', 'audit_logs', 'system_settings'
-    ];
-    const missingTables = requiredTables.filter((table) => !existingTables.has(table));
-
-    if (missingTables.length > 0) {
-      throw new Error(`Database schema is missing tables: ${missingTables.join(', ')}`);
-    }
+    // Auto-create tables if they don't exist
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        full_name VARCHAR(255),
+        email VARCHAR(255) UNIQUE,
+        phone VARCHAR(50),
+        password_hash TEXT,
+        referral_code VARCHAR(50),
+        referred_by VARCHAR(50),
+        role VARCHAR(20) DEFAULT 'user',
+        is_active BOOLEAN DEFAULT true,
+        is_account_activated BOOLEAN DEFAULT false,
+        avatar_url TEXT,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      );
+      CREATE TABLE IF NOT EXISTS wallets (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id),
+        available_balance DECIMAL(12,2) DEFAULT 0,
+        total_earned DECIMAL(12,2) DEFAULT 0,
+        pending_rewards DECIMAL(12,2) DEFAULT 0,
+        referral_rewards DECIMAL(12,2) DEFAULT 0,
+        total_withdrawn DECIMAL(12,2) DEFAULT 0,
+        updated_at TIMESTAMP DEFAULT NOW()
+      );
+      CREATE TABLE IF NOT EXISTS tasks (
+        id SERIAL PRIMARY KEY,
+        title TEXT,
+        description TEXT,
+        category VARCHAR(50),
+        reward_amount DECIMAL(12,2),
+        estimated_time VARCHAR(50),
+        requirements TEXT,
+        instructions TEXT,
+        evidence_required BOOLEAN DEFAULT true,
+        max_submissions INTEGER DEFAULT 500,
+        current_submissions INTEGER DEFAULT 0,
+        is_active BOOLEAN DEFAULT true,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      );
+      CREATE TABLE IF NOT EXISTS task_submissions (
+        id SERIAL PRIMARY KEY,
+        task_id INTEGER REFERENCES tasks(id),
+        user_id INTEGER REFERENCES users(id),
+        evidence_text TEXT,
+        evidence_url TEXT,
+        status VARCHAR(20) DEFAULT 'pending',
+        admin_feedback TEXT,
+        reward_amount DECIMAL(12,2),
+        reviewed_by INTEGER,
+        reviewed_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      );
+      CREATE TABLE IF NOT EXISTS transactions (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id),
+        type VARCHAR(50),
+        amount DECIMAL(12,2),
+        status VARCHAR(20),
+        description TEXT,
+        reference VARCHAR(100),
+        metadata JSONB,
+        created_at TIMESTAMP DEFAULT NOW()
+      );
+      CREATE TABLE IF NOT EXISTS withdrawals (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id),
+        amount DECIMAL(12,2),
+        bank_name VARCHAR(100),
+        account_name VARCHAR(100),
+        account_number VARCHAR(20),
+        status VARCHAR(20) DEFAULT 'pending',
+        admin_note TEXT,
+        reference VARCHAR(100),
+        processed_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      );
+      CREATE TABLE IF NOT EXISTS account_activations (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id),
+        amount DECIMAL(12,2),
+        payment_reference VARCHAR(100),
+        payment_method VARCHAR(50),
+        status VARCHAR(20),
+        admin_notes TEXT,
+        confirmed_by INTEGER,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      );
+      CREATE TABLE IF NOT EXISTS referrals (
+        id SERIAL PRIMARY KEY,
+        referrer_id INTEGER REFERENCES users(id),
+        referee_id INTEGER REFERENCES users(id),
+        reward_amount DECIMAL(12,2),
+        status VARCHAR(20),
+        created_at TIMESTAMP DEFAULT NOW()
+      );
+      CREATE TABLE IF NOT EXISTS notifications (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id),
+        title TEXT,
+        message TEXT,
+        type VARCHAR(20),
+        link TEXT,
+        is_read BOOLEAN DEFAULT false,
+        created_at TIMESTAMP DEFAULT NOW()
+      );
+      CREATE TABLE IF NOT EXISTS audit_logs (
+        id SERIAL PRIMARY KEY,
+        admin_id INTEGER,
+        action TEXT,
+        target_type VARCHAR(50),
+        target_id INTEGER,
+        details JSONB,
+        ip_address VARCHAR(100),
+        created_at TIMESTAMP DEFAULT NOW()
+      );
+      CREATE TABLE IF NOT EXISTS system_settings (
+        id SERIAL PRIMARY KEY,
+        key VARCHAR(100) UNIQUE,
+        value TEXT,
+        description TEXT
+      );
+    `);
 
     usePg = true;
+    console.log('[DB] PostgreSQL tables ensured - production ready');
     return true;
   } catch (err) {
     if (process.env.NODE_ENV === 'production') {
       throw new Error(`Production PostgreSQL initialization failed: ${err.message}`);
     }
-
     console.warn('[DB] PostgreSQL unavailable; using the local development store:', err.message);
     await pool.end().catch(() => {});
     pool = null;
