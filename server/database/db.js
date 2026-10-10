@@ -19,8 +19,10 @@ if (process.env.DATABASE_URL || process.env.PGHOST) {
       password: process.env.PGPASSWORD || 'postgres',
       database: process.env.PGDATABASE || 'earnflow',
       ssl: process.env.NODE_ENV === 'production'
-        ? { rejectUnauthorized: process.env.PGSSL_REJECT_UNAUTHORIZED !== 'false' }
-        : false
+      ?{connectionString: process.env.DATABASE_URL,
+      require: true,rejectUnauthorized: false
+  }
+});
     });
   } catch (err) {
     console.warn('[DB] Could not initialize PostgreSQL Pool, falling back to local store:', err.message);
