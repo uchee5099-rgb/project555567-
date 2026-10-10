@@ -7,7 +7,14 @@ const path = require('path');
 const fs = require('fs');
 const db = require('./database/db');
 const { JWT_SECRET } = require('./middleware/auth');
+const { Pool } = require('pg');
 
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false // <-- add this
+  }
+});
 const authRoutes = require('./routes/auth');
 const taskRoutes = require('./routes/tasks');
 const walletRoutes = require('./routes/wallet');
