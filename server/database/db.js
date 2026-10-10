@@ -11,19 +11,24 @@ let usePg = false;
 // Attempt PostgreSQL pool if configured
 if (process.env.DATABASE_URL || process.env.PGHOST) {
   try {
-    pool = new Pool({
-      connectionString: process.env.DATABASE_URL,
-      host: process.env.PGHOST || 'localhost',
-      port: process.env.PGPORT || 5432,
-      user: process.env.PGUSER || 'postgres',
-      password: process.env.PGPASSWORD || 'postgres',
-      database: process.env.PGDATABASE || 'earnflow',
-      ssl: process.env.NODE_ENV === 'production'
-      ?{connectionString: process.env.DATABASE_URL,
-      require: true,rejectUnauthorized: false
-  }
-});
-    });
+    pool = new Pool(
+      process.env.DATABASE_URL
+        ? {
+            connectionString: process.env.DATABASE_URL,
+            ssl: {
+              require: true,
+              rejectUnauthorized: false
+            }
+          }
+        : {
+            host: process.env.PGHOST || 'localhost',
+            port: process.env.PGPORT ? parseInt(process.env.PGPORT) : 5432,
+            user: process.env.PGUSER || 'postgres',
+            password: process.env.PGPASSWORD || 'postgres',
+            database: process.env.PGDATABASE || 'earnflow',
+            ssl: process.env.NODE_ENV === 'production' ? { require: true, rejectUnauthorized: false } : false
+          }
+    );
   } catch (err) {
     console.warn('[DB] Could not initialize PostgreSQL Pool, falling back to local store:', err.message);
   }
